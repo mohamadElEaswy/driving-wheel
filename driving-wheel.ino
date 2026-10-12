@@ -14,9 +14,10 @@
 // 1 = USB HID gamepad. 0 = IBus frames on Serial for VJoySerialFeeder.
 #define USE_USB_HID 1
 
-// 0 = gyro Z (wheel rotation, supports +/-180). 1 = getAngleY(), like the
-// reference sketch (accelerometer-stabilized, only reliable to +/-90).
-#define STEERING_AXIS_Y 0
+// 0 = gyro Z (flat spin, supports +/-180).
+// 1 = getAngleY(), like the reference sketch (tilt, only reliable to +/-90).
+// 2 = whichever of X/Y/Z is moving. Use this while testing the mount.
+#define STEERING_SOURCE 2
 
 // Ignore jitter smaller than this, in degrees. Set to 0 to disable.
 #define DEADZONE_DEG 1.0f
@@ -32,13 +33,24 @@ USBHIDGamepad gamepad;
 #endif
 
 MPU6050 mpu6050(Wire);
-float center = 0;
+float centerX = 0;
+float centerY = 0;
+float centerZ = 0;
+bool mpuFound = false;
 
-float readAngle() {
-#if STEERING_AXIS_Y
-  return mpu6050.getAngleY();
+float pickAngle() {
+  float x = mpu6050.getAngleX() - centerX;
+  float y = mpu6050.getAngleY() - centerY;
+  float z = mpu6050.getAngleZ() - centerZ;
+#if STEERING_SOURCE == 1
+  return y;
+#elif STEERING_SOURCE == 0
+  return z;
 #else
-  return mpu6050.getAngleZ();
+  float angle = z;
+  if (fabs(x) > fabs(angle)) angle = x;
+  if (fabs(y) > fabs(angle)) angle = y;
+  return angle;
 #endif
 }
 
@@ -65,35 +77,63 @@ void setup() {
 #if USE_USB_HID
   gamepad.begin();
   USB.begin();
-#else
-  Serial.begin(115200);
 #endif
+  Serial.begin(115200);
 
   // SDA = GPIO 8, SCL = GPIO 9.
   Wire.begin(8, 9);
+  Wire.beginTransmission(0x68);
+  mpuFound = (Wire.endTransmission() == 0);
+
+  if (!mpuFound) {
+    Serial.println("MPU6050 not found at 0x68. Check 3.3V, GND, SDA=GPIO8, SCL=GPIO9.");
+    return;
+  }
+
   mpu6050.begin();
   // Keep the wheel still. This blocks for a few seconds.
   mpu6050.calcGyroOffsets(false);
-
   mpu6050.update();
-  center = readAngle();
+  centerX = mpu6050.getAngleX();
+  centerY = mpu6050.getAngleY();
+  centerZ = mpu6050.getAngleZ();
+  Serial.println("MPU6050 ready. Turn the wheel.");
 }
 
 void loop() {
-  mpu6050.update();
+  int axis;
 
-  float angle = readAngle() - center;
-  if (fabs(angle) < DEADZONE_DEG) {
-    angle = 0;
+  if (!mpuFound) {
+    // Sensor missing: slide the stick so joy.cpl shows the gamepad itself works.
+    axis = (int)((millis() / 8) % 254) - 127;
+  } else {
+    mpu6050.update();
+    float angle = pickAngle();
+    if (fabs(angle) < DEADZONE_DEG) {
+      angle = 0;
+    }
+    angle = constrain(angle, -(float)MAX_STEERING_ANGLE, (float)MAX_STEERING_ANGLE);
+    axis = (int)(angle * 127.0f / MAX_STEERING_ANGLE);
+    axis = constrain(axis, -127, 127);
+
+    static unsigned long lastLog = 0;
+    if (millis() - lastLog > 200) {
+      lastLog = millis();
+      Serial.print("x ");
+      Serial.print(mpu6050.getAngleX() - centerX);
+      Serial.print("  y ");
+      Serial.print(mpu6050.getAngleY() - centerY);
+      Serial.print("  z ");
+      Serial.print(mpu6050.getAngleZ() - centerZ);
+      Serial.print("  axis ");
+      Serial.println(axis);
+    }
   }
-  angle = constrain(angle, -(float)MAX_STEERING_ANGLE, (float)MAX_STEERING_ANGLE);
 
 #if USE_USB_HID
-  int axis = (int)(angle * 127.0f / MAX_STEERING_ANGLE);
-  axis = constrain(axis, -127, 127);
   gamepad.leftStick((int8_t)axis, 0);
 #else
-  int channel = 1500 + (int)(angle * 500.0f / MAX_STEERING_ANGLE);
+  int channel = 1500 + axis * 500 / 127;
   channel = constrain(channel, 1000, 2000);
   sendIbus((unsigned short)channel);
 #endif

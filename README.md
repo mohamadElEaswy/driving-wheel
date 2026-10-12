@@ -87,13 +87,14 @@ At the top of `driving-wheel.ino`:
 ```cpp
 #define MAX_STEERING_ANGLE 90   // 90 or 180 only
 #define USE_USB_HID 1           // 0 = IBus serial fallback
-#define STEERING_AXIS_Y 0       // 1 = reference getAngleY()
+#define STEERING_SOURCE 2       // 2 = whichever axis moves, 0 = Z, 1 = Y
 #define DEADZONE_DEG 1.0f
 ```
 
 - `MAX_STEERING_ANGLE` clamps the reading to `-limit`, `0`, `+limit`, then stretches that span across the full joystick X range (`-127` … `127`). The sketch will not compile with any other value.
-- `STEERING_AXIS_Y 0` reads gyro Z, so `±180` works at any wheel tilt. Gyro Z drifts slowly. Press RESET to re-center.
-- `STEERING_AXIS_Y 1` reads `getAngleY()`, matching the reference sketch. The accelerometer holds it steady, but that axis only behaves past the clamp when `MAX_STEERING_ANGLE` is `90`. Mount the board so wheel rotation is the chip's Y tilt.
+- `STEERING_SOURCE 2` sends whichever of X, Y, or Z is farthest from center. Use this to find which way the chip has to turn.
+- `STEERING_SOURCE 0` reads gyro Z (flat spin) and supports `±180`. It drifts slowly. Press RESET to re-center.
+- `STEERING_SOURCE 1` reads `getAngleY()`, matching the reference sketch. The accelerometer holds it steady, but that axis only behaves when `MAX_STEERING_ANGLE` is `90`.
 
 
 
@@ -120,7 +121,8 @@ Channel 1 is the only channel. Its value is `1500` at center and `1000` / `2000`
 ## If something looks wrong
 
 - **Axis goes the wrong way.** In `loop()`, change `angle` to `-angle` before the `constrain` call.
-- **Axis never moves.** Check SDA/SCL and 3.3V. AD0 must be GND. The Serial Monitor (115200) stays quiet in HID mode; that is expected.
-- **Center walks away over several minutes.** That is gyro Z drift. Press RESET with the wheel straight, or set `STEERING_AXIS_Y` to `1` and `MAX_STEERING_ANGLE` to `90`.
+- **The crosshair slides left and right by itself.** The MPU-6050 was not found. Check 3.3V, GND, SDA to GPIO 8, SCL to GPIO 9, and AD0 tied to GND. Serial Monitor at 115200 prints `MPU6050 not found` in that case.
+- **Axis never moves, and it does not slide by itself.** Open Serial Monitor at 115200 and turn the board. `x`, `y`, and `z` should change. If they change but `joy.cpl` stays still, unplug the USB cable and plug it back in.
+- **Center walks away over several minutes.** That is gyro Z drift. Press RESET with the wheel straight, or set `STEERING_SOURCE` to `1` and `MAX_STEERING_ANGLE` to `90`.
 - **No gamepad in** `joy.cpl`**.** USB Mode must be USB-OTG (TinyUSB), and the cable must carry data. Try another port.
 
