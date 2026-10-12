@@ -78,7 +78,20 @@ Keep the wheel still for a few seconds after every reset. `calcGyroOffsets(false
 4. With `MAX_STEERING_ANGLE` at `90`, a 90° turn reaches the end of the axis. At `180`, you need a half turn each way.
 5. Press **RESET** on the board, hold the wheel where you want center, and wait for calibration to finish. That position is `0`.
 
+## Test in a game
 
+Leave `USE_USB_HID` at `1`. Do not install VJoySerialFeeder for this. The game reads the same X axis that moves in `joy.cpl`. If that crosshair does not move, the game will not steer either.
+
+1. Start the game and open its control settings.
+2. Bind steering to the controller or joystick **X axis**. The device name is **ESP32 Gamepad**.
+3. Turn the wheel. The game's steering should follow it.
+
+Many new games only accept an Xbox controller, so they ignore this device even though `joy.cpl` sees it. If the game has no joystick binding:
+
+1. Add the game to Steam if it is not already there.
+2. Steam → Settings → Controller → enable generic gamepad support.
+3. Right-click the game → Properties → Controller → Enable Steam Input.
+4. Launch the game from Steam. It then sees an Xbox controller, and the wheel is the left stick's horizontal axis.
 
 ## Sketch options
 
@@ -100,11 +113,11 @@ At the top of `driving-wheel.ino`:
 
 ## Fallback: vJoy + VJoySerialFeeder
 
-Use this if the game does not see the HID gamepad. In the sketch set `USE_USB_HID` to `0`, and in Tools set **USB Mode** to **Hardware CDC and JTAG** (leave USB CDC On Boot enabled). Upload again.
+Use this only when the USB gamepad does not appear in `joy.cpl`. In the sketch set `USE_USB_HID` to `0`, and in Tools set **USB Mode** to **Hardware CDC and JTAG** (leave USB CDC On Boot enabled). Upload again.
 
 1. Install [vJoy](https://sourceforge.net/projects/vjoystick/).
 2. Open **Configure vJoy**. Enable device 1. Enable the X axis. Apply.
-3. Download [VJoySerialFeeder](https://github.com/vjoy-serial-feeder/vjoy-serial-feeder/releases).
+3. Download [VJoySerialFeeder for Windows](https://github.com/Cleric-K/vJoySerialFeeder/releases) (`vJoySerialFeeder_Windows_v1.7.1.zip`).
 4. In VJoySerialFeeder:
   - Port: the ESP32 COM port
   - Baud rate: `115200`
