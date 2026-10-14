@@ -78,6 +78,24 @@ Keep the wheel still for a few seconds after every reset. `calcGyroOffsets(false
 4. With `MAX_STEERING_ANGLE` at `90`, a 90° turn reaches the end of the axis. At `180`, you need a half turn each way.
 5. Press **RESET** on the board, hold the wheel where you want center, and wait for calibration to finish. That position is `0`.
 
+## Test on Mac
+
+Wi-Fi and Bluetooth are not used. The page reads the same USB gamepad axis.
+
+1. Plug the board in with USB-C and press **RESET**. Hold the wheel still for a few seconds.
+2. In Terminal, from this project folder:
+
+   ```bash
+   cd portal
+   python3 -m http.server 8080
+   ```
+
+3. Open Chrome at `http://localhost:8080`. The same axis as an aircraft attitude gyro is at `http://localhost:8080/gyro.html`.
+4. Turn the wheel. The on-screen wheel should follow. Set **Limit** to the same value as `MAX_STEERING_ANGLE` in the sketch (`90` or `180`).
+5. If the page stays at "Waiting for the wheel", click **Connect USB** and choose **ESP32S3_DEV**.
+
+Safari can see the gamepad, but **Connect USB** only works in Chrome. The serial port stays hidden while this sketch is running, so the page does not use it.
+
 ## Test in a game
 
 Leave `USE_USB_HID` at `1`. Do not install VJoySerialFeeder for this. The game reads the same X axis that moves in `joy.cpl`. If that crosshair does not move, the game will not steer either.

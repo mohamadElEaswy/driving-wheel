@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Attitude gyro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --panel: #121410;
+      --metal: #2a2c28;
+      --metal-edge: #6d7068;
+      --ink: #e7e2d4;
+      --muted: #9a967f;
+      --amber: #f0c84a;
+      --sky: #3c86c4;
+      --earth: #6e4a28;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: Oswald, sans-serif;
+      background:
+        radial-gradient(ellipse at 50% 40%, #2a2e26 0%, transparent 50%),
+        repeating-linear-gradient(90deg, transparent 0 18px, rgba(255,255,255,0.015) 18px 19px),
+        var(--panel);
+    }
+
+    main {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 36px 20px 56px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0;
+      font-weight: 500;
+      font-size: 28px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .status {
+      margin: 0;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .status[data-state="connected"] { color: #c6d47a; }
+    .status[data-state="missing"] { color: #e36a4a; }
+
+    .case {
+      background: linear-gradient(180deg, #3a3d36, #1c1e1a 40%, #141512);
+      border-radius: 36px;
+      padding: 28px 28px 22px;
+      border: 1px solid #4a4d44;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.18),
+        0 30px 50px rgba(0,0,0,0.45);
+    }
+
+    .instrument {
+      width: min(420px, 100%);
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .glass {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      overflow: hidden;
+      background: #000;
+      box-shadow:
+        inset 0 0 0 10px #1a1c18,
+        inset 0 0 0 12px var(--metal-edge),
+        inset 0 0 40px rgba(0,0,0,0.35);
+    }
+
+    .world {
+      position: absolute;
+      width: 280%;
+      height: 280%;
+      left: -90%;
+      top: -90%;
+      transform-origin: center center;
+    }
+
+    .sky {
+      height: 50%;
+      background: linear-gradient(#8ec8ef, var(--sky) 55%, #2d6ea8);
+    }
+
+    .earth {
+      height: 50%;
+      background: linear-gradient(#8a6236, var(--earth) 30%, #3d2814);
+    }
+
+    .horizon {
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      top: 50%;
+      height: 3px;
+      margin-top: -1.5px;
+      background: #fff;
+    }
+
+    .pitch {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 0;
+      height: 0;
+    }
+
+    .pitch span {
+      position: absolute;
+      left: 0;
+      height: 2px;
+      background: rgba(255,255,255,0.85);
+      transform: translate(-50%, -50%);
+    }
+
+    .bank-pointer {
+      position: absolute;
+      inset: 0;
+      transform-origin: center center;
+    }
+
+    .bank-pointer i {
+      position: absolute;
+      top: 7%;
+      left: 50%;
+      margin-left: -8px;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-bottom: 14px solid #fff;
+    }
+
+    .scale {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .aircraft {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .readout {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 16px;
+      margin-top: 22px;
+      padding: 0 8px;
+    }
+
+    .label {
+      display: block;
+      color: var(--muted);
+      letter-spacing: 0.16em;
+      font-size: 12px;
+    }
+
+    .value {
+      font-size: 42px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      color: var(--amber);
+    }
+
+    select, button, a.nav {
+      font: inherit;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink);
+      background: transparent;
+      border: 1px solid #4a4d44;
+      border-radius: 4px;
+      padding: 8px 12px;
+      text-decoration: none;
+    }
+
+    button {
+      cursor: pointer;
+      background: var(--amber);
+      color: #1a160c;
+      border-color: var(--amber);
+    }
+
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .note {
+      display: none;
+      margin: 14px 8px 0;
+      color: #e36a4a;
+      letter-spacing: 0.04em;
+      font-size: 15px;
+      line-height: 1.35;
+    }
+
+    .note.show { display: block; }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 0.06em;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Attitude</h1>
+      <p class="status" id="status" data-state="waiting">Waiting for the wheel</p>
+    </header>
+
+    <section class="case">
+      <div class="instrument">
+        <div class="glass">
+          <div class="world" id="world">
+            <div class="sky"></div>
+            <div class="earth"></div>
+            <div class="horizon"></div>
+            <div class="pitch" aria-hidden="true">
+              <span style="top:-28px;width:72px"></span>
+              <span style="top:-52px;width:40px"></span>
+              <span style="top:-76px;width:72px"></span>
+              <span style="top:28px;width:72px"></span>
+              <span style="top:52px;width:40px"></span>
+              <span style="top:76px;width:72px"></span>
+            </div>
+          </div>
+          <div class="bank-pointer" id="pointer" aria-hidden="true"><i></i></div>
+          <svg class="scale" viewBox="0 0 100 100" aria-hidden="true">
+            <g fill="none" stroke="#f4f1e8" stroke-width="0.8" stroke-linecap="square">
+              <path d="M50 8 L50 14"></path>
+              <path d="M62 9.5 L60.6 14.8"></path>
+              <path d="M38 9.5 L39.4 14.8"></path>
+              <path d="M73.5 14 L70.2 18.2"></path>
+              <path d="M26.5 14 L29.8 18.2"></path>
+              <path d="M84 24 L79.2 27.2"></path>
+              <path d="M16 24 L20.8 27.2"></path>
+              <path d="M92 38 L86.8 39.4"></path>
+              <path d="M8 38 L13.2 39.4"></path>
+            </g>
+            <path d="M50 7.2 L47.6 11.2 L52.4 11.2 Z" fill="#f4f1e8"></path>
+          </svg>
+          <svg class="aircraft" viewBox="0 0 100 100" aria-hidden="true">
+            <g fill="#f0c84a" stroke="#1a160c" stroke-width="0.6">
+              <rect x="18" y="48.6" width="22" height="2.8" rx="0.4"></rect>
+              <rect x="60" y="48.6" width="22" height="2.8" rx="0.4"></rect>
+              <rect x="48.4" y="46.2" width="3.2" height="7.6"></rect>
+              <rect x="49.1" y="56" width="1.8" height="7"></rect>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="readout">
+        <div>
+          <span class="label">Bank</span>
+          <div class="value"><span id="angle">0</span>°</div>
+        </div>
+        <div>
+          <span class="label">Axis</span>
+          <div class="value" id="axis">0</div>
+        </div>
+        <label>
+          <span class="label">Limit</span>
+          <select id="limit">
+            <option value="90" selected>90°</option>
+            <option value="180">180°</option>
+          </select>
+        </label>
+      </div>
+      <p class="note" id="note">The horizon is rolling on its own. The MPU-6050 was not found. Check 3.3V, GND, SDA on GPIO 8, and SCL on GPIO 9.</p>
+    </section>
+
+    <footer>
+      <a class="nav" href="/">Wheel bench</a>
+      <button id="connect" type="button">Connect USB</button>
+    </footer>
+  </main>
+
+  <script>
+    const statusEl = document.querySelector("#status");
+    const axisEl = document.querySelector("#axis");
+    const angleEl = document.querySelector("#angle");
+    const worldEl = document.querySelector("#world");
+    const pointerEl = document.querySelector("#pointer");
+    const limitEl = document.querySelector("#limit");
+    const noteEl = document.querySelector("#note");
+    const connectBtn = document.querySelector("#connect");
+
+    let source = "none";
+    let hidAxis = 0;
+    let lastAxis = null;
+    let sweepDir = 0;
+    let sweepWraps = 0;
+    let lastChange = 0;
+
+    function setStatus(state, text) {
+      statusEl.dataset.state = state;
+      statusEl.textContent = text;
+    }
+
+    function watchSweep(axis) {
+      const now = performance.now();
+      if (lastAxis === null) {
+        lastAxis = axis;
+        lastChange = now;
+        return;
+      }
+      const delta = axis - lastAxis;
+      lastAxis = axis;
+      if (Math.abs(delta) > 180) {
+        sweepWraps += 1;
+        noteEl.classList.toggle("show", sweepWraps >= 2);
+        return;
+      }
+      if (Math.abs(delta) < 1) {
+        if (now - lastChange > 500) {
+          sweepWraps = 0;
+          noteEl.classList.remove("show");
+        }
+        return;
+      }
+      lastChange = now;
+      const dir = delta > 0 ? 1 : -1;
+      if (dir !== sweepDir) {
+        sweepDir = dir;
+        sweepWraps = 0;
+        noteEl.classList.remove("show");
+      }
+    }
+
+    function showAxis(raw) {
+      const axis = Math.max(-127, Math.min(127, Math.round(raw)));
+      const limit = Number(limitEl.value);
+      const angle = Math.round((axis / 127) * limit);
+      axisEl.textContent = String(axis);
+      angleEl.textContent = String(angle);
+      const turn = "rotate(" + angle + "deg)";
+      worldEl.style.transform = turn;
+      pointerEl.style.transform = turn;
+      watchSweep(axis);
+    }
+
+    function gamepadAxis() {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      let chosen = null;
+      for (const pad of pads) {
+        if (!pad || !pad.axes || pad.axes.length === 0) continue;
+        const id = (pad.id || "").toLowerCase();
+        if (id.includes("esp32") || id.includes("303a")) return pad.axes[0] * 127;
+        chosen = pad;
+      }
+      return chosen ? chosen.axes[0] * 127 : null;
+    }
+
+    function frame() {
+      const fromPad = gamepadAxis();
+      if (fromPad !== null) {
+        source = "pad";
+        setStatus("connected", "Connected over USB");
+        showAxis(fromPad);
+      } else if (source === "hid") {
+        setStatus("connected", "Connected over USB");
+        showAxis(hidAxis);
+      } else {
+        setStatus("waiting", "Waiting for the wheel");
+      }
+      requestAnimationFrame(frame);
+    }
+
+    connectBtn.addEventListener("click", async () => {
+      if (!navigator.hid) {
+        setStatus("missing", "This browser has no USB access");
+        return;
+      }
+      const devices = await navigator.hid.requestDevice({
+        filters: [{ vendorId: 0x303a, productId: 0x1001 }]
+      });
+      const device = devices[0];
+      if (!device) return;
+      if (!device.opened) await device.open();
+      device.addEventListener("inputreport", (event) => {
+        const view = new DataView(event.data.buffer, event.data.byteOffset, event.data.byteLength);
+        hidAxis = view.getInt8(0);
+        source = "hid";
+      });
+      source = "hid";
+      setStatus("connected", "Connected over USB");
+    });
+
+    if (!navigator.hid) connectBtn.disabled = true;
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Driving wheel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,520;9..144,680&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #1a1612;
+      --bg-2: #241e18;
+      --ink: #f3ead7;
+      --muted: #a89880;
+      --line: #3a3128;
+      --amber: #e6a23c;
+      --amber-dim: #8a5a1e;
+      --danger: #e36a4a;
+      --ok: #c6d47a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: "Spline Sans Mono", ui-monospace, monospace;
+      background:
+        radial-gradient(ellipse at 50% 0%, #3a2c1c 0%, transparent 55%),
+        var(--bg);
+    }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 24px 64px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Fraunces, Georgia, serif;
+      font-weight: 520;
+      font-size: 42px;
+      letter-spacing: -0.03em;
+    }
+
+    .status {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .status[data-state="connected"] { color: var(--ok); }
+    .status[data-state="missing"] { color: var(--danger); }
+
+    .bench {
+      background: var(--bg-2);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 28px 20px 22px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+    }
+
+    .wheel-wrap {
+      display: grid;
+      place-items: center;
+      min-height: 340px;
+    }
+
+    svg { overflow: visible; }
+
+    .rim { fill: none; stroke: var(--ink); stroke-width: 14; }
+    .spoke { stroke: var(--amber-dim); stroke-width: 6; }
+    .hub { fill: var(--amber); }
+    .mark { stroke: var(--amber); stroke-width: 8; stroke-linecap: round; }
+
+    .readout {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 18px;
+      align-items: end;
+      margin-top: 8px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+    }
+
+    .label {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .value {
+      font-family: Fraunces, Georgia, serif;
+      font-size: 48px;
+      line-height: 0.9;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .unit { font-family: "Spline Sans Mono", monospace; font-size: 16px; color: var(--muted); }
+
+    select, button {
+      font: inherit;
+      color: var(--ink);
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 10px 16px;
+    }
+
+    button {
+      cursor: pointer;
+      background: var(--amber);
+      color: #1a1612;
+      border-color: var(--amber);
+      font-weight: 500;
+    }
+
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .note {
+      display: none;
+      margin-top: 16px;
+      color: var(--danger);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .note.show { display: block; }
+
+    footer {
+      margin-top: 22px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Wheel bench</h1>
+      <p class="status" id="status" data-state="waiting">Waiting for the wheel</p>
+    </header>
+
+    <section class="bench">
+      <div class="wheel-wrap">
+        <svg width="280" height="280" viewBox="0 0 280 280" aria-hidden="true">
+          <g id="wheel" style="transform-origin: 140px 140px; transform: rotate(0deg)">
+            <circle class="rim" cx="140" cy="140" r="108"></circle>
+            <line class="spoke" x1="140" y1="44" x2="140" y2="236"></line>
+            <line class="spoke" x1="44" y1="140" x2="236" y2="140"></line>
+            <line class="mark" x1="140" y1="36" x2="140" y2="78"></line>
+            <circle class="hub" cx="140" cy="140" r="12"></circle>
+          </g>
+        </svg>
+      </div>
+
+      <div class="readout">
+        <div>
+          <span class="label">Axis</span>
+          <div class="value" id="axis">0</div>
+        </div>
+        <div>
+          <span class="label">Angle</span>
+          <div class="value"><span id="angle">0</span><span class="unit">°</span></div>
+        </div>
+        <label>
+          <span class="label">Limit</span>
+          <select id="limit">
+            <option value="90" selected>90°</option>
+            <option value="180">180°</option>
+          </select>
+        </label>
+      </div>
+
+      <p class="note" id="note">The stick is sliding on its own. The MPU-6050 was not found. Check 3.3V, GND, SDA on GPIO 8, and SCL on GPIO 9.</p>
+    </section>
+
+    <footer>
+      <p>Plug the ESP32 in with USB-C, press RESET, hold the wheel still for a few seconds, then turn it. Wi-Fi and Bluetooth are not used.</p>
+      <p><button id="connect" type="button">Connect USB</button></p>
+      <p id="hint">If the wheel stays at 0, click Connect USB and choose ESP32S3_DEV. Open this page in Chrome at localhost. The same axis is drawn as an <a href="/gyro.html">attitude gyro</a>.</p>
+    </footer>
+  </main>
+
+  <script>
+    const statusEl = document.querySelector("#status");
+    const axisEl = document.querySelector("#axis");
+    const angleEl = document.querySelector("#angle");
+    const wheelEl = document.querySelector("#wheel");
+    const limitEl = document.querySelector("#limit");
+    const noteEl = document.querySelector("#note");
+    const connectBtn = document.querySelector("#connect");
+
+    let source = "none";
+    let hidAxis = 0;
+    let lastAxis = null;
+    let sweepDir = 0;
+    let sweepWraps = 0;
+    let lastChange = 0;
+
+    function setStatus(state, text) {
+      statusEl.dataset.state = state;
+      statusEl.textContent = text;
+    }
+
+    function watchSweep(axis) {
+      const now = performance.now();
+      if (lastAxis === null) {
+        lastAxis = axis;
+        lastChange = now;
+        return;
+      }
+      const delta = axis - lastAxis;
+      lastAxis = axis;
+      if (Math.abs(delta) > 180) {
+        sweepWraps += 1;
+        noteEl.classList.toggle("show", sweepWraps >= 2);
+        return;
+      }
+      if (Math.abs(delta) < 1) {
+        if (now - lastChange > 500) {
+          sweepWraps = 0;
+          noteEl.classList.remove("show");
+        }
+        return;
+      }
+      lastChange = now;
+      const dir = delta > 0 ? 1 : -1;
+      if (dir !== sweepDir) {
+        sweepDir = dir;
+        sweepWraps = 0;
+        noteEl.classList.remove("show");
+      }
+    }
+
+    function showAxis(raw) {
+      const axis = Math.max(-127, Math.min(127, Math.round(raw)));
+      const limit = Number(limitEl.value);
+      const angle = Math.round((axis / 127) * limit);
+      axisEl.textContent = String(axis);
+      angleEl.textContent = String(angle);
+      wheelEl.style.transform = "rotate(" + angle + "deg)";
+      watchSweep(axis);
+    }
+
+    function gamepadAxis() {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      let chosen = null;
+      for (const pad of pads) {
+        if (!pad || !pad.axes || pad.axes.length === 0) continue;
+        const id = (pad.id || "").toLowerCase();
+        if (id.includes("esp32") || id.includes("303a")) return pad.axes[0] * 127;
+        chosen = pad;
+      }
+      return chosen ? chosen.axes[0] * 127 : null;
+    }
+
+    function frame() {
+      const fromPad = gamepadAxis();
+      if (fromPad !== null) {
+        source = "pad";
+        setStatus("connected", "Connected over USB");
+        showAxis(fromPad);
+      } else if (source === "hid") {
+        setStatus("connected", "Connected over USB");
+        showAxis(hidAxis);
+      } else {
+        setStatus("waiting", "Waiting for the wheel");
+      }
+      requestAnimationFrame(frame);
+    }
+
+    connectBtn.addEventListener("click", async () => {
+      if (!navigator.hid) {
+        setStatus("missing", "This browser has no USB access");
+        return;
+      }
+      const devices = await navigator.hid.requestDevice({
+        filters: [{ vendorId: 0x303a, productId: 0x1001 }]
+      });
+      const device = devices[0];
+      if (!device) return;
+      if (!device.opened) await device.open();
+      device.addEventListener("inputreport", (event) => {
+        const view = new DataView(event.data.buffer, event.data.byteOffset, event.data.byteLength);
+        hidAxis = view.getInt8(0);
+        source = "hid";
+      });
+      source = "hid";
+      setStatus("connected", "Connected over USB");
+    });
+
+    if (!navigator.hid) connectBtn.disabled = true;
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
